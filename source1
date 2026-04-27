@@ -1,459 +1,245 @@
--- ╔══════════════════════════════════════════════════════════════╗
--- ║  v1 Library v1.0.0 — No UI, Pure API                       ║
--- ║  All methods return the v1 table for chaining where possible║
--- ║  Call v1.Help() to print the full API reference             ║
--- ╚══════════════════════════════════════════════════════════════╝
+-- [[ Universal GUI Library by You ]] --
+local Library = {}
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
 
-local v1 = {}
-v1.Version = "1.0.0"
+function Library:New(title)
+    local Gui = Instance.new("ScreenGui")
+    Gui.Name = "UniversalGUI_" .. tostring(math.random(1000, 9999))
+    Gui.ResetOnSpawn = false
+    Gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    
+    -- Executor desteği için (Synapse, Fluxus, etc.)
+    if syn and syn.protect_gui then syn.protect_gui(Gui) end
+    Gui.Parent = game:GetService("CoreGui")
 
--- Services (StarterGui removed to ensure 0 UI elements)
-local S = {
-    Players            = game:GetService("Players"),
-    RunService         = game:GetService("RunService"),
-    TweenService       = game:GetService("TweenService"),
-    UserInputService   = game:GetService("UserInputService"),
-    Workspace          = game:GetService("Workspace"),
-    Lighting           = game:GetService("Lighting"),
-    ReplicatedStorage  = game:GetService("ReplicatedStorage"),
-    VirtualUser        = game:GetService("VirtualUser"),
-}
+    local Main = Instance.new("Frame")
+    Main.Size = UDim2.new(0, 500, 0, 350)
+    Main.Position = UDim2.new(0.5, -250, 0.5, -175)
+    Main.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+    Main.BorderSizePixel = 0
+    Main.Parent = Gui
+    local MainCorner = Instance.new("UICorner", Main)
+    MainCorner.CornerRadius = UDim.new(0, 8)
 
-local P = S.Players.LocalPlayer
-local Connections = {}
+    local TitleBar = Instance.new("Frame")
+    TitleBar.Size = UDim2.new(1, 0, 0, 40)
+    TitleBar.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+    TitleBar.BorderSizePixel = 0
+    TitleBar.Parent = Main
+    local TBCorner = Instance.new("UICorner", TitleBar)
+    TBCorner.CornerRadius = UDim.new(0, 8)
 
--- ═══════════════════════════════════════════════════
---  API REFERENCE (self-documenting)
--- ═══════════════════════════════════════════════════
+    local TitleLabel = Instance.new("TextLabel")
+    TitleLabel.Size = UDim2.new(1, -20, 1, 0)
+    TitleLabel.Position = UDim2.new(0, 15, 0, 0)
+    TitleLabel.BackgroundTransparency = 1
+    TitleLabel.Text = title or "Universal GUI"
+    TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    TitleLabel.TextSize = 16
+    TitleLabel.Font = Enum.Font.GothamBold
+    TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    TitleLabel.Parent = TitleBar
 
-local API = {
-    -- UTILITY
-    "Wait(seconds)",
-    "Defer(seconds, callback)",
-    "Spawn(callback)",
-    "Tween(object, properties, duration?, easingStyle?, easingDirection?)",
-    "GetInstance(pathString, timeout?)",
-    "DisconnectAll()",
-
-    -- PLAYER
-    "GetLocalPlayer()                → Player",
-    "GetCharacter(player?)           → Model",
-    "GetHumanoid(player?)            → Humanoid",
-    "GetRootPart(player?)            → Part",
-    "IsAlive(player?)                → boolean",
-    "GetHealth(player?)              → number, number (health, maxHealth)",
-    "GetPosition(player?)            → Vector3",
-    "GetPlayers()                    → {Player}",
-    "GetPlayerByName(name)           → Player?",
-    "GetNearestPlayer(maxDist?, ignoreList?) → Player?, number",
-
-    -- MOVEMENT
-    "TeleportTo(position, player?)",
-    "TeleportToPlayer(targetPlayer)",
-    "WalkTo(position, player?)",
-    "SetWalkSpeed(speed, player?)",
-    "SetJumpPower(power, player?)",
-    "SetGravity(value)",
-    "GetGravity()                    → number",
-
-    -- CAMERA
-    "SetCameraSubject(subject)",
-    "SetCameraMode(cameraType)",
-    "LookAt(position)",
-
-    -- LIGHTING
-    "SetTimeOfDay(timeNumber)",
-    "SetFogEnd(distance)",
-    "SetBrightness(value)",
-    "SetAmbient(color3)",
-    "SetOutdoorAmbient(color3)",
-
-    -- REMOTES
-    "FireRemote(name, ...)",
-    "InvokeRemote(name, ...)         → ...",
-
-    -- INPUT
-    "OnKeyPress(keyCode, callback)   → Connection",
-    "OnKeyRelease(keyCode, callback) → Connection",
-
-    -- EVENTS
-    "Connect(signal, callback)       → Connection",
-    "OnCharacterAdded(callback)",
-    "OnPlayerAdded(callback)",
-
-    -- LOOPS
-    "HeartbeatLoop(callback)         → Connection   (return false to stop)",
-    "RenderSteppedLoop(callback)     → Connection   (return false to stop)",
-    "RepeatEvery(interval, callback) → {Stop=fn}",
-
-    -- RAYCAST
-    "Raycast(origin, direction, params?)",
-    "RaycastFromCamera(distance?, params?)",
-
-    -- MATH
-    "Distance(a, b)                  → number",
-    "Direction(from, to)             → Vector3",
-    "Lerp(a, b, alpha)               → number",
-    "Clamp(value, min, max)          → number",
-
-    -- MISC
-    "AntiAFK()",
-    "Log(...)",
-    "Warn(...)",
-    "Help()                          → prints API",
-}
-
-function v1.Help()
-    print("\n╔══════════════════════════════════════╗")
-    print("║   v1 Library v" .. v1.Version .. " — API Reference   ║")
-    print("╚══════════════════════════════════════╝")
-    for _, line in ipairs(API) do
-        print("  " .. line)
-    end
-    print("")
-    return v1
-end
-
--- ═══════════════════════════════════════════════════
---  UTILITY
--- ═══════════════════════════════════════════════════
-
-function v1.Wait(seconds)
-    task.wait(seconds)
-    return v1
-end
-
-function v1.Defer(seconds, callback)
-    task.delay(seconds, callback)
-    return v1
-end
-
-function v1.Spawn(callback)
-    task.spawn(callback)
-    return v1
-end
-
-function v1.Tween(object, properties, duration, easingStyle, easingDirection)
-    duration = duration or 1
-    easingStyle = easingStyle or Enum.EasingStyle.Quad
-    easingDirection = easingDirection or Enum.EasingDirection.Out
-    local tween = S.TweenService:Create(object, TweenInfo.new(duration, easingStyle, easingDirection), properties)
-    tween:Play()
-    return tween
-end
-
-function v1.GetInstance(path, timeout)
-    timeout = timeout or 10
-    local parts = string.split(path, ".")
-    local current = game
-    for _, part in ipairs(parts) do
-        local child = current:FindFirstChild(part) or current:WaitForChild(part, timeout)
-        if not child then return nil end
-        current = child
-    end
-    return current
-end
-
-function v1.DisconnectAll()
-    for _, conn in ipairs(Connections) do
-        if conn.Connected then conn:Disconnect() end
-    end
-    Connections = {}
-    return v1
-end
-
--- ═══════════════════════════════════════════════════
---  PLAYER
--- ═══════════════════════════════════════════════════
-
-function v1.GetLocalPlayer()
-    return P
-end
-
-function v1.GetCharacter(player)
-    player = player or P
-    return player.Character or player.CharacterAdded:Wait()
-end
-
-function v1.GetHumanoid(player)
-    player = player or P
-    local c = v1.GetCharacter(player)
-    return c and c:FindFirstChildOfClass("Humanoid") or nil
-end
-
-function v1.GetRootPart(player)
-    player = player or P
-    local c = v1.GetCharacter(player)
-    return c and c:FindFirstChild("HumanoidRootPart") or nil
-end
-
-function v1.IsAlive(player)
-    local h = v1.GetHumanoid(player)
-    return h and h.Health > 0
-end
-
-function v1.GetHealth(player)
-    local h = v1.GetHumanoid(player)
-    return h and h.Health or 0, h and h.MaxHealth or 0
-end
-
-function v1.GetPosition(player)
-    local r = v1.GetRootPart(player)
-    return r and r.Position or Vector3.zero
-end
-
-function v1.GetPlayers()
-    return S.Players:GetPlayers()
-end
-
-function v1.GetPlayerByName(name)
-    local lower = string.lower(name)
-    for _, p in ipairs(S.Players:GetPlayers()) do
-        if string.lower(p.Name) == lower or string.lower(p.DisplayName) == lower then
-            return p
+    -- Sürükleme (Drag) Mantığı
+    local dragging, dragInput, dragStart, startPos
+    TitleBar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStart = input.Position
+            startPos = Main.Position
         end
-    end
-    return nil
-end
+    end)
+    TitleBar.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end end)
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local delta = input.Position - dragStart
+            Main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
 
-function v1.GetNearestPlayer(maxDistance, ignoreList)
-    maxDistance = maxDistance or math.huge
-    ignoreList = ignoreList or {}
-    local myRoot = v1.GetRootPart()
-    if not myRoot then return nil, 0 end
-    local nearest, nearestDist = nil, maxDistance
-    for _, p in ipairs(S.Players:GetPlayers()) do
-        if p ~= P and not table.find(ignoreList, p) then
-            local r = v1.GetRootPart(p)
-            if r and v1.IsAlive(p) then
-                local d = (r.Position - myRoot.Position).Magnitude
-                if d < nearestDist then
-                    nearest, nearestDist = p, d
-                end
+    -- Tab (Sekme) Alanları
+    local TabList = Instance.new("Frame")
+    TabList.Size = UDim2.new(0, 120, 1, -50)
+    TabList.Position = UDim2.new(0, 10, 0, 45)
+    TabList.BackgroundTransparency = 1
+    TabList.Parent = Main
+    local TabLayout = Instance.new("UIListLayout", TabList)
+    TabLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    TabLayout.Padding = UDim.new(0, 5)
+
+    local Container = Instance.new("Frame")
+    Container.Size = UDim2.new(1, -145, 1, -55)
+    Container.Position = UDim2.new(0, 135, 0, 50)
+    Container.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+    Container.BorderSizePixel = 0
+    Container.Parent = Main
+    local ContainerCorner = Instance.new("UICorner", Container)
+    ContainerCorner.CornerRadius = UDim.new(0, 6)
+    local ContainerPadding = Instance.new("UIPadding", Container)
+    ContainerPadding.PaddingTop = UDim.new(0, 10)
+    ContainerPadding.PaddingLeft = UDim.new(0, 10)
+    ContainerPadding.PaddingRight = UDim.new(0, 10)
+    
+    local ContainerLayout = Instance.new("UIListLayout", Container)
+    ContainerLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    ContainerLayout.Padding = UDim.new(0, 8)
+
+    local Window = {}
+    Window.Tabs = {}
+
+    -- Sağ Ctrl ile Açma/Kapama
+    UserInputService.InputBegan:Connect(function(input, gpe)
+        if gpe then return end
+        if input.KeyCode == Enum.KeyCode.RightControl then
+            Main.Visible = not Main.Visible
+        end
+    end)
+
+    function Window:CreateTab(name)
+        local TabButton = Instance.new("TextButton")
+        TabButton.Size = UDim2.new(1, 0, 0, 30)
+        TabButton.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
+        TabButton.TextColor3 = Color3.fromRGB(180, 180, 200)
+        TabButton.Text = name
+        TabButton.Font = Enum.Font.Gotham
+        TabButton.TextSize = 13
+        TabButton.BorderSizePixel = 0
+        TabButton.Parent = TabList
+        local BtnCorner = Instance.new("UICorner", TabButton)
+        BtnCorner.CornerRadius = UDim.new(0, 5)
+
+        local TabFrame = Instance.new("ScrollingFrame")
+        TabFrame.Size = UDim2.new(1, 0, 1, 0)
+        TabFrame.BackgroundTransparency = 1
+        TabFrame.BorderSizePixel = 0
+        TabFrame.ScrollBarThickness = 4
+        TabFrame.Visible = false
+        TabFrame.Parent = Container
+        local TabLayout = Instance.new("UIListLayout", TabFrame)
+        TabLayout.SortOrder = Enum.SortOrder.LayoutOrder
+        TabLayout.Padding = UDim.new(0, 8)
+
+        -- Tab Geçişleri
+        TabButton.MouseButton1Click:Connect(function()
+            for _, t in pairs(Window.Tabs) do
+                t.Frame.Visible = false
+                t.Button.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
+                t.Button.TextColor3 = Color3.fromRGB(180, 180, 200)
             end
+            TabFrame.Visible = true
+            TabButton.BackgroundColor3 = Color3.fromRGB(85, 170, 255)
+            TabButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+        end)
+
+        table.insert(Window.Tabs, {Button = TabButton, Frame = TabFrame})
+
+        -- İlk tabı otomatik aç
+        if #Window.Tabs == 1 then
+            TabFrame.Visible = true
+            TabButton.BackgroundColor3 = Color3.fromRGB(85, 170, 255)
+            TabButton.TextColor3 = Color3.fromRGB(255, 255, 255)
         end
+
+        local Tab = {}
+
+        function Tab:CreateButton(text, callback)
+            local Btn = Instance.new("TextButton")
+            Btn.Size = UDim2.new(1, 0, 0, 35)
+            Btn.BackgroundColor3 = Color3.fromRGB(50, 50, 65)
+            Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+            Btn.Text = text
+            Btn.Font = Enum.Font.Gotham
+            Btn.TextSize = 13
+            Btn.BorderSizePixel = 0
+            Btn.AutoButtonColor = true
+            Btn.Parent = TabFrame
+            local Corner = Instance.new("UICorner", Btn)
+            Corner.CornerRadius = UDim.new(0, 5)
+
+            Btn.MouseButton1Click:Connect(function()
+                if callback then callback() end
+            end)
+            return Btn
+        end
+
+        function Tab:CreateToggle(text, default, callback)
+            local ToggleFrame = Instance.new("Frame")
+            ToggleFrame.Size = UDim2.new(1, 0, 0, 35)
+            ToggleFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 65)
+            ToggleFrame.BorderSizePixel = 0
+            ToggleFrame.Parent = TabFrame
+            local Corner = Instance.new("UICorner", ToggleFrame)
+            Corner.CornerRadius = UDim.new(0, 5)
+
+            local Label = Instance.new("TextLabel")
+            Label.Size = UDim2.new(1, -50, 1, 0)
+            Label.Position = UDim2.new(0, 10, 0, 0)
+            Label.BackgroundTransparency = 1
+            Label.TextColor3 = Color3.fromRGB(255, 255, 255)
+            Label.Text = text
+            Label.Font = Enum.Font.Gotham
+            Label.TextSize = 13
+            Label.TextXAlignment = Enum.TextXAlignment.Left
+            Label.Parent = ToggleFrame
+
+            local Switch = Instance.new("Frame")
+            Switch.Size = UDim2.new(0, 35, 0, 18)
+            Switch.Position = UDim2.new(1, -45, 0.5, -9)
+            Switch.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+            Switch.BorderSizePixel = 0
+            Switch.Parent = ToggleFrame
+            local SwCorner = Instance.new("UICorner", Switch)
+            SwCorner.CornerRadius = UDim.new(1, 0)
+
+            local Circle = Instance.new("Frame")
+            Circle.Size = UDim2.new(0, 14, 0, 14)
+            Circle.Position = UDim2.new(0, 2, 0.5, -7)
+            Circle.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
+            Circle.BorderSizePixel = 0
+            Circle.Parent = Switch
+            local CiCorner = Instance.new("UICorner", Circle)
+            CiCorner.CornerRadius = UDim.new(1, 0)
+
+            local toggled = default or false
+            local function UpdateToggle()
+                if toggled then
+                    TweenService:Create(Switch, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(85, 170, 255)}):Play()
+                    TweenService:Create(Circle, TweenInfo.new(0.2), {Position = UDim2.new(0, 19, 0.5, -7)}):Play()
+                else
+                    TweenService:Create(Switch, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(30, 30, 40)}):Play()
+                    TweenService:Create(Circle, TweenInfo.new(0.2), {Position = UDim2.new(0, 2, 0.5, -7)}):Play()
+                end
+                if callback then callback(toggled) end
+            end
+
+            ToggleFrame.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                    toggled = not toggled
+                    UpdateToggle()
+                end
+            end)
+            UpdateToggle()
+            return ToggleFrame
+        end
+
+        function Tab:CreateLabel(text)
+            local Lbl = Instance.new("TextLabel")
+            Lbl.Size = UDim2.new(1, 0, 0, 25)
+            Lbl.BackgroundTransparency = 1
+            Lbl.TextColor3 = Color3.fromRGB(180, 180, 200)
+            Lbl.Text = text
+            Lbl.Font = Enum.Font.Gotham
+            Lbl.TextSize = 13
+            Lbl.TextXAlignment = Enum.TextXAlignment.Left
+            Lbl.Parent = TabFrame
+            return Lbl
+        end
+
+        return Tab
     end
-    return nearest, nearestDist
+
+    return Window
 end
 
--- ═══════════════════════════════════════════════════
---  MOVEMENT
--- ═══════════════════════════════════════════════════
-
-function v1.TeleportTo(position, player)
-    local r = v1.GetRootPart(player or P)
-    if r then r.CFrame = CFrame.new(position) end
-    return v1
-end
-
-function v1.TeleportToPlayer(targetPlayer)
-    local r = v1.GetRootPart(targetPlayer)
-    if r then v1.TeleportTo(r.Position + Vector3.new(3, 0, 0)) end
-    return v1
-end
-
-function v1.WalkTo(position, player)
-    local h = v1.GetHumanoid(player or P)
-    if h then h:MoveTo(position) end
-    return v1
-end
-
-function v1.SetWalkSpeed(speed, player)
-    local h = v1.GetHumanoid(player or P)
-    if h then h.WalkSpeed = speed end
-    return v1
-end
-
-function v1.SetJumpPower(power, player)
-    local h = v1.GetHumanoid(player or P)
-    if h then h.JumpPower = power end
-    return v1
-end
-
-function v1.SetGravity(value)
-    S.Workspace.Gravity = value
-    return v1
-end
-
-function v1.GetGravity()
-    return S.Workspace.Gravity
-end
-
--- ═══════════════════════════════════════════════════
---  CAMERA
--- ═══════════════════════════════════════════════════
-
-function v1.SetCameraSubject(subject)
-    S.Workspace.CurrentCamera.CameraSubject = subject
-    return v1
-end
-
-function v1.SetCameraMode(mode)
-    S.Workspace.CurrentCamera.CameraType = mode
-    return v1
-end
-
-function v1.LookAt(position)
-    local cam = S.Workspace.CurrentCamera
-    cam.CFrame = CFrame.new(cam.CFrame.Position, position)
-    return v1
-end
-
--- ═══════════════════════════════════════════════════
---  LIGHTING
--- ═══════════════════════════════════════════════════
-
-function v1.SetTimeOfDay(t)      S.Lighting.ClockTime = t        return v1 end
-function v1.SetFogEnd(d)         S.Lighting.FogEnd = d           return v1 end
-function v1.SetBrightness(v)     S.Lighting.Brightness = v       return v1 end
-function v1.SetAmbient(c)        S.Lighting.Ambient = c          return v1 end
-function v1.SetOutdoorAmbient(c) S.Lighting.OutdoorAmbient = c   return v1 end
-
--- ═══════════════════════════════════════════════════
---  REMOTES
--- ═══════════════════════════════════════════════════
-
-function v1.FireRemote(name, ...)
-    -- FIXED: Corrected "RepicatedStorage" typo
-    for _, d in ipairs(S.ReplicatedStorage:GetDescendants()) do
-        if d.Name == name and d:IsA("RemoteEvent") then
-            d:FireServer(...)
-            return true
-        end
-    end
-    -- Fallback: direct child
-    local r = S.ReplicatedStorage:FindFirstChild(name)
-    if r and r:IsA("RemoteEvent") then r:FireServer(...) return true end
-    return false
-end
-
-function v1.InvokeRemote(name, ...)
-    for _, d in ipairs(S.ReplicatedStorage:GetDescendants()) do
-        if d.Name == name and d:IsA("RemoteFunction") then
-            return d:InvokeServer(...)
-        end
-    end
-    return nil
-end
-
--- ═══════════════════════════════════════════════════
---  INPUT
--- ═══════════════════════════════════════════════════
-
-function v1.OnKeyPress(keyCode, callback)
-    local conn = S.UserInputService.InputBegan:Connect(function(input, processed)
-        if not processed and input.KeyCode == keyCode then callback(input) end
-    end)
-    table.insert(Connections, conn)
-    return conn
-end
-
-function v1.OnKeyRelease(keyCode, callback)
-    local conn = S.UserInputService.InputEnded:Connect(function(input, processed)
-        if not processed and input.KeyCode == keyCode then callback(input) end
-    end)
-    table.insert(Connections, conn)
-    return conn
-end
-
--- ═══════════════════════════════════════════════════
---  EVENTS
--- ═══════════════════════════════════════════════════
-
-function v1.Connect(signal, callback)
-    local conn = signal:Connect(callback)
-    table.insert(Connections, conn)
-    return conn
-end
-
-function v1.OnCharacterAdded(callback)
-    if P.Character then task.spawn(callback, P.Character) end
-    v1.Connect(P.CharacterAdded, function(char) task.spawn(callback, char) end)
-    return v1
-end
-
-function v1.OnPlayerAdded(callback)
-    for _, p in ipairs(S.Players:GetPlayers()) do task.spawn(callback, p) end
-    v1.Connect(S.Players.PlayerAdded, callback)
-    return v1
-end
-
--- ═══════════════════════════════════════════════════
---  LOOPS
--- ═══════════════════════════════════════════════════
-
-function v1.HeartbeatLoop(callback)
-    local conn
-    conn = S.RunService.Heartbeat:Connect(function(dt)
-        if callback(dt) == false then conn:Disconnect() end
-    end)
-    table.insert(Connections, conn)
-    return conn
-end
-
-function v1.RenderSteppedLoop(callback)
-    local conn
-    conn = S.RunService.RenderStepped:Connect(function(dt)
-        if callback(dt) == false then conn:Disconnect() end
-    end)
-    table.insert(Connections, conn)
-    return conn
-end
-
-function v1.RepeatEvery(interval, callback)
-    local running = true
-    task.spawn(function()
-        while running do
-            callback()
-            task.wait(interval)
-        end
-    end)
-    return { Stop = function() running = false end }
-end
-
--- ═══════════════════════════════════════════════════
---  RAYCAST
--- ═══════════════════════════════════════════════════
-
-function v1.Raycast(origin, direction, params)
-    return S.Workspace:Raycast(origin, direction, params or RaycastParams.new())
-end
-
-function v1.RaycastFromCamera(distance, params)
-    local cam = S.Workspace.CurrentCamera
-    local mouse = S.UserInputService:GetMouseLocation()
-    local ray = cam:ViewportPointToRay(mouse.X, mouse.Y)
-    return S.Workspace:Raycast(ray.Origin, ray.Direction * (distance or 1000), params or RaycastParams.new())
-end
-
--- ═══════════════════════════════════════════════════
---  MATH
--- ═══════════════════════════════════════════════════
-
-function v1.Distance(a, b)           return (a - b).Magnitude end
-function v1.Direction(from, to)      return (to - from).Unit end
-function v1.Lerp(a, b, alpha)        return a + (b - a) * alpha end
-function v1.Clamp(val, min, max)     return math.clamp(val, min, max) end
-
--- ═══════════════════════════════════════════════════
---  MISC
--- ═══════════════════════════════════════════════════
-
-function v1.AntiAFK()
-    P.Idled:Connect(function()
-        S.VirtualUser:CaptureController()
-        S.VirtualUser:ClickButton2(Vector2.new())
-        v1.Log("Anti-AFK triggered")
-    end)
-    return v1
-end
-
-function v1.Log(...)   print("[v1]", ...)  return v1 end
-function v1.Warn(...)  warn("[v1]", ...)  return v1 end
-
--- ═══════════════════════════════════════════════════
---  RETURN
--- ═══════════════════════════════════════════════════
-
-v1.Help()
-return v1
+return Library
