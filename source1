@@ -7,7 +7,7 @@
 local v1 = {}
 v1.Version = "1.0.0"
 
--- Services
+-- Services (StarterGui removed to ensure 0 UI elements)
 local S = {
     Players            = game:GetService("Players"),
     RunService         = game:GetService("RunService"),
@@ -17,7 +17,6 @@ local S = {
     Lighting           = game:GetService("Lighting"),
     ReplicatedStorage  = game:GetService("ReplicatedStorage"),
     VirtualUser        = game:GetService("VirtualUser"),
-    StarterGui         = game:GetService("StarterGui"),
 }
 
 local P = S.Players.LocalPlayer
@@ -108,10 +107,7 @@ function v1.Help()
     print("\n╔══════════════════════════════════════╗")
     print("║   v1 Library v" .. v1.Version .. " — API Reference   ║")
     print("╚══════════════════════════════════════╝")
-    local currentSection = ""
     for _, line in ipairs(API) do
-        local method = line:match("^(%w+)%(?")
-        local firstChar = method:sub(1, 1)
         print("  " .. line)
     end
     print("")
@@ -318,8 +314,8 @@ function v1.SetOutdoorAmbient(c) S.Lighting.OutdoorAmbient = c   return v1 end
 -- ═══════════════════════════════════════════════════
 
 function v1.FireRemote(name, ...)
-    local targets = {S.ReplicatedStorage}
-    for _, d in ipairs(S.RepicatedStorage:GetDescendants()) do
+    -- FIXED: Corrected "RepicatedStorage" typo
+    for _, d in ipairs(S.ReplicatedStorage:GetDescendants()) do
         if d.Name == name and d:IsA("RemoteEvent") then
             d:FireServer(...)
             return true
