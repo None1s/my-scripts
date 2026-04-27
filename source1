@@ -1,0 +1,463 @@
+-- ╔══════════════════════════════════════════════════════════════╗
+-- ║  v1 Library v1.0.0 — No UI, Pure API                       ║
+-- ║  All methods return the v1 table for chaining where possible║
+-- ║  Call v1.Help() to print the full API reference             ║
+-- ╚══════════════════════════════════════════════════════════════╝
+
+local v1 = {}
+v1.Version = "1.0.0"
+
+-- Services
+local S = {
+    Players            = game:GetService("Players"),
+    RunService         = game:GetService("RunService"),
+    TweenService       = game:GetService("TweenService"),
+    UserInputService   = game:GetService("UserInputService"),
+    Workspace          = game:GetService("Workspace"),
+    Lighting           = game:GetService("Lighting"),
+    ReplicatedStorage  = game:GetService("ReplicatedStorage"),
+    VirtualUser        = game:GetService("VirtualUser"),
+    StarterGui         = game:GetService("StarterGui"),
+}
+
+local P = S.Players.LocalPlayer
+local Connections = {}
+
+-- ═══════════════════════════════════════════════════
+--  API REFERENCE (self-documenting)
+-- ═══════════════════════════════════════════════════
+
+local API = {
+    -- UTILITY
+    "Wait(seconds)",
+    "Defer(seconds, callback)",
+    "Spawn(callback)",
+    "Tween(object, properties, duration?, easingStyle?, easingDirection?)",
+    "GetInstance(pathString, timeout?)",
+    "DisconnectAll()",
+
+    -- PLAYER
+    "GetLocalPlayer()                → Player",
+    "GetCharacter(player?)           → Model",
+    "GetHumanoid(player?)            → Humanoid",
+    "GetRootPart(player?)            → Part",
+    "IsAlive(player?)                → boolean",
+    "GetHealth(player?)              → number, number (health, maxHealth)",
+    "GetPosition(player?)            → Vector3",
+    "GetPlayers()                    → {Player}",
+    "GetPlayerByName(name)           → Player?",
+    "GetNearestPlayer(maxDist?, ignoreList?) → Player?, number",
+
+    -- MOVEMENT
+    "TeleportTo(position, player?)",
+    "TeleportToPlayer(targetPlayer)",
+    "WalkTo(position, player?)",
+    "SetWalkSpeed(speed, player?)",
+    "SetJumpPower(power, player?)",
+    "SetGravity(value)",
+    "GetGravity()                    → number",
+
+    -- CAMERA
+    "SetCameraSubject(subject)",
+    "SetCameraMode(cameraType)",
+    "LookAt(position)",
+
+    -- LIGHTING
+    "SetTimeOfDay(timeNumber)",
+    "SetFogEnd(distance)",
+    "SetBrightness(value)",
+    "SetAmbient(color3)",
+    "SetOutdoorAmbient(color3)",
+
+    -- REMOTES
+    "FireRemote(name, ...)",
+    "InvokeRemote(name, ...)         → ...",
+
+    -- INPUT
+    "OnKeyPress(keyCode, callback)   → Connection",
+    "OnKeyRelease(keyCode, callback) → Connection",
+
+    -- EVENTS
+    "Connect(signal, callback)       → Connection",
+    "OnCharacterAdded(callback)",
+    "OnPlayerAdded(callback)",
+
+    -- LOOPS
+    "HeartbeatLoop(callback)         → Connection   (return false to stop)",
+    "RenderSteppedLoop(callback)     → Connection   (return false to stop)",
+    "RepeatEvery(interval, callback) → {Stop=fn}",
+
+    -- RAYCAST
+    "Raycast(origin, direction, params?)",
+    "RaycastFromCamera(distance?, params?)",
+
+    -- MATH
+    "Distance(a, b)                  → number",
+    "Direction(from, to)             → Vector3",
+    "Lerp(a, b, alpha)               → number",
+    "Clamp(value, min, max)          → number",
+
+    -- MISC
+    "AntiAFK()",
+    "Log(...)",
+    "Warn(...)",
+    "Help()                          → prints API",
+}
+
+function v1.Help()
+    print("\n╔══════════════════════════════════════╗")
+    print("║   v1 Library v" .. v1.Version .. " — API Reference   ║")
+    print("╚══════════════════════════════════════╝")
+    local currentSection = ""
+    for _, line in ipairs(API) do
+        local method = line:match("^(%w+)%(?")
+        local firstChar = method:sub(1, 1)
+        print("  " .. line)
+    end
+    print("")
+    return v1
+end
+
+-- ═══════════════════════════════════════════════════
+--  UTILITY
+-- ═══════════════════════════════════════════════════
+
+function v1.Wait(seconds)
+    task.wait(seconds)
+    return v1
+end
+
+function v1.Defer(seconds, callback)
+    task.delay(seconds, callback)
+    return v1
+end
+
+function v1.Spawn(callback)
+    task.spawn(callback)
+    return v1
+end
+
+function v1.Tween(object, properties, duration, easingStyle, easingDirection)
+    duration = duration or 1
+    easingStyle = easingStyle or Enum.EasingStyle.Quad
+    easingDirection = easingDirection or Enum.EasingDirection.Out
+    local tween = S.TweenService:Create(object, TweenInfo.new(duration, easingStyle, easingDirection), properties)
+    tween:Play()
+    return tween
+end
+
+function v1.GetInstance(path, timeout)
+    timeout = timeout or 10
+    local parts = string.split(path, ".")
+    local current = game
+    for _, part in ipairs(parts) do
+        local child = current:FindFirstChild(part) or current:WaitForChild(part, timeout)
+        if not child then return nil end
+        current = child
+    end
+    return current
+end
+
+function v1.DisconnectAll()
+    for _, conn in ipairs(Connections) do
+        if conn.Connected then conn:Disconnect() end
+    end
+    Connections = {}
+    return v1
+end
+
+-- ═══════════════════════════════════════════════════
+--  PLAYER
+-- ═══════════════════════════════════════════════════
+
+function v1.GetLocalPlayer()
+    return P
+end
+
+function v1.GetCharacter(player)
+    player = player or P
+    return player.Character or player.CharacterAdded:Wait()
+end
+
+function v1.GetHumanoid(player)
+    player = player or P
+    local c = v1.GetCharacter(player)
+    return c and c:FindFirstChildOfClass("Humanoid") or nil
+end
+
+function v1.GetRootPart(player)
+    player = player or P
+    local c = v1.GetCharacter(player)
+    return c and c:FindFirstChild("HumanoidRootPart") or nil
+end
+
+function v1.IsAlive(player)
+    local h = v1.GetHumanoid(player)
+    return h and h.Health > 0
+end
+
+function v1.GetHealth(player)
+    local h = v1.GetHumanoid(player)
+    return h and h.Health or 0, h and h.MaxHealth or 0
+end
+
+function v1.GetPosition(player)
+    local r = v1.GetRootPart(player)
+    return r and r.Position or Vector3.zero
+end
+
+function v1.GetPlayers()
+    return S.Players:GetPlayers()
+end
+
+function v1.GetPlayerByName(name)
+    local lower = string.lower(name)
+    for _, p in ipairs(S.Players:GetPlayers()) do
+        if string.lower(p.Name) == lower or string.lower(p.DisplayName) == lower then
+            return p
+        end
+    end
+    return nil
+end
+
+function v1.GetNearestPlayer(maxDistance, ignoreList)
+    maxDistance = maxDistance or math.huge
+    ignoreList = ignoreList or {}
+    local myRoot = v1.GetRootPart()
+    if not myRoot then return nil, 0 end
+    local nearest, nearestDist = nil, maxDistance
+    for _, p in ipairs(S.Players:GetPlayers()) do
+        if p ~= P and not table.find(ignoreList, p) then
+            local r = v1.GetRootPart(p)
+            if r and v1.IsAlive(p) then
+                local d = (r.Position - myRoot.Position).Magnitude
+                if d < nearestDist then
+                    nearest, nearestDist = p, d
+                end
+            end
+        end
+    end
+    return nearest, nearestDist
+end
+
+-- ═══════════════════════════════════════════════════
+--  MOVEMENT
+-- ═══════════════════════════════════════════════════
+
+function v1.TeleportTo(position, player)
+    local r = v1.GetRootPart(player or P)
+    if r then r.CFrame = CFrame.new(position) end
+    return v1
+end
+
+function v1.TeleportToPlayer(targetPlayer)
+    local r = v1.GetRootPart(targetPlayer)
+    if r then v1.TeleportTo(r.Position + Vector3.new(3, 0, 0)) end
+    return v1
+end
+
+function v1.WalkTo(position, player)
+    local h = v1.GetHumanoid(player or P)
+    if h then h:MoveTo(position) end
+    return v1
+end
+
+function v1.SetWalkSpeed(speed, player)
+    local h = v1.GetHumanoid(player or P)
+    if h then h.WalkSpeed = speed end
+    return v1
+end
+
+function v1.SetJumpPower(power, player)
+    local h = v1.GetHumanoid(player or P)
+    if h then h.JumpPower = power end
+    return v1
+end
+
+function v1.SetGravity(value)
+    S.Workspace.Gravity = value
+    return v1
+end
+
+function v1.GetGravity()
+    return S.Workspace.Gravity
+end
+
+-- ═══════════════════════════════════════════════════
+--  CAMERA
+-- ═══════════════════════════════════════════════════
+
+function v1.SetCameraSubject(subject)
+    S.Workspace.CurrentCamera.CameraSubject = subject
+    return v1
+end
+
+function v1.SetCameraMode(mode)
+    S.Workspace.CurrentCamera.CameraType = mode
+    return v1
+end
+
+function v1.LookAt(position)
+    local cam = S.Workspace.CurrentCamera
+    cam.CFrame = CFrame.new(cam.CFrame.Position, position)
+    return v1
+end
+
+-- ═══════════════════════════════════════════════════
+--  LIGHTING
+-- ═══════════════════════════════════════════════════
+
+function v1.SetTimeOfDay(t)      S.Lighting.ClockTime = t        return v1 end
+function v1.SetFogEnd(d)         S.Lighting.FogEnd = d           return v1 end
+function v1.SetBrightness(v)     S.Lighting.Brightness = v       return v1 end
+function v1.SetAmbient(c)        S.Lighting.Ambient = c          return v1 end
+function v1.SetOutdoorAmbient(c) S.Lighting.OutdoorAmbient = c   return v1 end
+
+-- ═══════════════════════════════════════════════════
+--  REMOTES
+-- ═══════════════════════════════════════════════════
+
+function v1.FireRemote(name, ...)
+    local targets = {S.ReplicatedStorage}
+    for _, d in ipairs(S.RepicatedStorage:GetDescendants()) do
+        if d.Name == name and d:IsA("RemoteEvent") then
+            d:FireServer(...)
+            return true
+        end
+    end
+    -- Fallback: direct child
+    local r = S.ReplicatedStorage:FindFirstChild(name)
+    if r and r:IsA("RemoteEvent") then r:FireServer(...) return true end
+    return false
+end
+
+function v1.InvokeRemote(name, ...)
+    for _, d in ipairs(S.ReplicatedStorage:GetDescendants()) do
+        if d.Name == name and d:IsA("RemoteFunction") then
+            return d:InvokeServer(...)
+        end
+    end
+    return nil
+end
+
+-- ═══════════════════════════════════════════════════
+--  INPUT
+-- ═══════════════════════════════════════════════════
+
+function v1.OnKeyPress(keyCode, callback)
+    local conn = S.UserInputService.InputBegan:Connect(function(input, processed)
+        if not processed and input.KeyCode == keyCode then callback(input) end
+    end)
+    table.insert(Connections, conn)
+    return conn
+end
+
+function v1.OnKeyRelease(keyCode, callback)
+    local conn = S.UserInputService.InputEnded:Connect(function(input, processed)
+        if not processed and input.KeyCode == keyCode then callback(input) end
+    end)
+    table.insert(Connections, conn)
+    return conn
+end
+
+-- ═══════════════════════════════════════════════════
+--  EVENTS
+-- ═══════════════════════════════════════════════════
+
+function v1.Connect(signal, callback)
+    local conn = signal:Connect(callback)
+    table.insert(Connections, conn)
+    return conn
+end
+
+function v1.OnCharacterAdded(callback)
+    if P.Character then task.spawn(callback, P.Character) end
+    v1.Connect(P.CharacterAdded, function(char) task.spawn(callback, char) end)
+    return v1
+end
+
+function v1.OnPlayerAdded(callback)
+    for _, p in ipairs(S.Players:GetPlayers()) do task.spawn(callback, p) end
+    v1.Connect(S.Players.PlayerAdded, callback)
+    return v1
+end
+
+-- ═══════════════════════════════════════════════════
+--  LOOPS
+-- ═══════════════════════════════════════════════════
+
+function v1.HeartbeatLoop(callback)
+    local conn
+    conn = S.RunService.Heartbeat:Connect(function(dt)
+        if callback(dt) == false then conn:Disconnect() end
+    end)
+    table.insert(Connections, conn)
+    return conn
+end
+
+function v1.RenderSteppedLoop(callback)
+    local conn
+    conn = S.RunService.RenderStepped:Connect(function(dt)
+        if callback(dt) == false then conn:Disconnect() end
+    end)
+    table.insert(Connections, conn)
+    return conn
+end
+
+function v1.RepeatEvery(interval, callback)
+    local running = true
+    task.spawn(function()
+        while running do
+            callback()
+            task.wait(interval)
+        end
+    end)
+    return { Stop = function() running = false end }
+end
+
+-- ═══════════════════════════════════════════════════
+--  RAYCAST
+-- ═══════════════════════════════════════════════════
+
+function v1.Raycast(origin, direction, params)
+    return S.Workspace:Raycast(origin, direction, params or RaycastParams.new())
+end
+
+function v1.RaycastFromCamera(distance, params)
+    local cam = S.Workspace.CurrentCamera
+    local mouse = S.UserInputService:GetMouseLocation()
+    local ray = cam:ViewportPointToRay(mouse.X, mouse.Y)
+    return S.Workspace:Raycast(ray.Origin, ray.Direction * (distance or 1000), params or RaycastParams.new())
+end
+
+-- ═══════════════════════════════════════════════════
+--  MATH
+-- ═══════════════════════════════════════════════════
+
+function v1.Distance(a, b)           return (a - b).Magnitude end
+function v1.Direction(from, to)      return (to - from).Unit end
+function v1.Lerp(a, b, alpha)        return a + (b - a) * alpha end
+function v1.Clamp(val, min, max)     return math.clamp(val, min, max) end
+
+-- ═══════════════════════════════════════════════════
+--  MISC
+-- ═══════════════════════════════════════════════════
+
+function v1.AntiAFK()
+    P.Idled:Connect(function()
+        S.VirtualUser:CaptureController()
+        S.VirtualUser:ClickButton2(Vector2.new())
+        v1.Log("Anti-AFK triggered")
+    end)
+    return v1
+end
+
+function v1.Log(...)   print("[v1]", ...)  return v1 end
+function v1.Warn(...)  warn("[v1]", ...)  return v1 end
+
+-- ═══════════════════════════════════════════════════
+--  RETURN
+-- ═══════════════════════════════════════════════════
+
+v1.Help()
+return v1
